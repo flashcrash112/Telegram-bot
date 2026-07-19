@@ -40,6 +40,9 @@ class Sniper:
 
     async def handle_message(self, event: events.NewMessage.Event) -> None:
         text = event.raw_text or ""
+        if config.DEBUG_LOG_MESSAGES:
+            chat = getattr(event.chat, "title", None) or getattr(event.chat, "username", None)
+            log.info("message from %r (id %s): %.80r", chat, event.chat_id, text)
         if not text:
             return
         try:

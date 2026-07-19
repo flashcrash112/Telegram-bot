@@ -42,6 +42,10 @@ SOLANA_RECIPIENT = os.getenv("SOLANA_RECIPIENT", "").strip()
 
 SEEN_TOKENS_FILE = os.getenv("SEEN_TOKENS_FILE", "seen_tokens.json")
 
+# Log every message the bot receives (chat + first chars). Handy when
+# verifying the bot actually sees a chat; turn off for normal running.
+DEBUG_LOG_MESSAGES = _bool("DEBUG_LOG_MESSAGES", False)
+
 # Chains to act on, e.g. "ethereum,solana". Empty = all supported chains.
 # Detections on other chains are logged but never bought, and EVM RPC
 # probing is limited to the enabled chains.
