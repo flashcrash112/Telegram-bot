@@ -29,6 +29,20 @@ token immediately.
    that address (`eth_getCode`); Solana candidates are verified as SPL token
    mints via `getAccountInfo`.
 
+## Buy engines
+
+Two ways to execute buys, chosen with `BUY_ENGINE` in `.env`:
+
+- **`native`** (default): swaps directly on each chain's own DEX router.
+  Fastest execution, but you must hold the native gas coin on every chain you
+  want to buy on (ETH, BNB, POL, AVAX, SOL, …).
+- **`relay`**: cross-chain buys via [Relay](https://relay.link). You fund
+  **one wallet on one chain** (`RELAY_ORIGIN_CHAIN`, e.g. ETH on Base) and
+  Relay's solvers deliver the token on whatever chain it lives on — including
+  SPL tokens on Solana (set `SOLANA_RECIPIENT`, or it defaults to your
+  `SOLANA_PRIVATE_KEY`'s pubkey). Much simpler treasury management, at the
+  cost of a small relay fee and a few extra seconds per fill.
+
 ## Setup
 
 ```bash

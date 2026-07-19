@@ -23,6 +23,17 @@ def check_config() -> list[str]:
         problems.append("TELEGRAM_API_ID / TELEGRAM_API_HASH are required (https://my.telegram.org)")
     if not config.DRY_RUN and not (config.EVM_PRIVATE_KEY or config.SOLANA_PRIVATE_KEY):
         problems.append("DRY_RUN=false but no EVM_PRIVATE_KEY or SOLANA_PRIVATE_KEY is set")
+    if config.BUY_ENGINE not in ("native", "relay"):
+        problems.append(f"BUY_ENGINE must be 'native' or 'relay', got {config.BUY_ENGINE!r}")
+    if config.BUY_ENGINE == "relay":
+        from sniper.chains import EVM_CHAINS
+
+        if config.RELAY_ORIGIN_CHAIN not in EVM_CHAINS:
+            problems.append(
+                f"RELAY_ORIGIN_CHAIN must be one of {sorted(EVM_CHAINS)}, got {config.RELAY_ORIGIN_CHAIN!r}"
+            )
+        if not config.DRY_RUN and not config.EVM_PRIVATE_KEY:
+            problems.append("BUY_ENGINE=relay needs EVM_PRIVATE_KEY (the origin wallet)")
     return problems
 
 

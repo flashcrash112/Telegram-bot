@@ -9,7 +9,7 @@ import os
 from telethon import TelegramClient, events
 
 import config
-from sniper import chains, detector, evm_buyer, solana_buyer
+from sniper import chains, detector, evm_buyer, relay_buyer, solana_buyer
 
 log = logging.getLogger("listener")
 
@@ -78,9 +78,14 @@ class Sniper:
             )
             return
 
-        amount = config.buy_amount(det.chain)
+        use_relay = config.BUY_ENGINE == "relay"
+        amount = config.RELAY_BUY_AMOUNT if use_relay else config.buy_amount(det.chain)
         if amount <= 0:
-            log.warning("no buy amount configured for chain %r — skipping", det.chain)
+            log.warning(
+                "no buy amount configured (%s) for chain %r — skipping",
+                "RELAY_BUY_AMOUNT" if use_relay else f"BUY_AMOUNT_{det.chain.upper()}",
+                det.chain,
+            )
             return
 
         is_solana = det.chain == chains.SOLANA_KEY
@@ -90,14 +95,18 @@ class Sniper:
             return
 
         if config.DRY_RUN:
+            origin = f" (paid from {config.RELAY_ORIGIN_CHAIN} via Relay)" if use_relay else ""
             log.info(
-                "DRY RUN: would buy %s worth of %s (%s) on %s",
-                amount, det.symbol, det.address, det.chain,
+                "DRY RUN: would buy %s worth of %s (%s) on %s%s",
+                amount, det.symbol, det.address, det.chain, origin,
             )
             return
 
         try:
-            if is_solana:
+            if use_relay:
+                tx = await relay_buyer.buy(det.chain, det.address, amount)
+                log.info("BOUGHT %s on %s via Relay — origin tx %s", det.symbol, det.chain, tx)
+            elif is_solana:
                 sig = await solana_buyer.buy(det.address, amount)
                 log.info("BOUGHT %s on Solana — https://solscan.io/tx/%s", det.symbol, sig)
             else:

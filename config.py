@@ -31,6 +31,15 @@ SLIPPAGE_BPS = int(_float("SLIPPAGE_BPS", 300))
 EVM_PRIVATE_KEY = os.getenv("EVM_PRIVATE_KEY", "").strip()
 SOLANA_PRIVATE_KEY = os.getenv("SOLANA_PRIVATE_KEY", "").strip()
 
+# "native" = swap on each chain's own DEX router (needs gas coins everywhere).
+# "relay"  = fund one origin chain and buy cross-chain via relay.link.
+BUY_ENGINE = os.getenv("BUY_ENGINE", "native").strip().lower()
+RELAY_ORIGIN_CHAIN = os.getenv("RELAY_ORIGIN_CHAIN", "base").strip().lower()
+RELAY_BUY_AMOUNT = _float("RELAY_BUY_AMOUNT", 0.0)
+# Solana address that receives SPL tokens on cross-chain buys; falls back
+# to the pubkey derived from SOLANA_PRIVATE_KEY.
+SOLANA_RECIPIENT = os.getenv("SOLANA_RECIPIENT", "").strip()
+
 SEEN_TOKENS_FILE = os.getenv("SEEN_TOKENS_FILE", "seen_tokens.json")
 
 
