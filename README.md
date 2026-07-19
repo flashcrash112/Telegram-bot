@@ -90,6 +90,27 @@ day, then set `DRY_RUN=false` when you're confident in the settings.
   (persisted in `seen_tokens.json`).
 - Fee-on-transfer-safe swap function on EVM, so taxed tokens don't revert.
 
+## Running 24/7 on a VPS
+
+After the first interactive run (which creates the Telegram session file),
+install the bot as a systemd service so it survives reboots and crashes:
+
+```bash
+cp deploy/sniper.service /etc/systemd/system/sniper.service
+# edit the paths in the file if you didn't clone to /root/Telegram-bot
+systemctl daemon-reload
+systemctl enable --now sniper
+```
+
+Useful commands:
+
+```bash
+journalctl -u sniper -f     # watch live logs
+systemctl status sniper     # is it running?
+systemctl restart sniper    # restart after editing .env
+systemctl stop sniper       # stop it (e.g. to pause trading)
+```
+
 ## ⚠️ Read this before going live
 
 Auto-buying contract addresses posted in Telegram is **one of the riskiest
