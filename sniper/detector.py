@@ -19,6 +19,7 @@ from dataclasses import dataclass, field
 import aiohttp
 import base58
 
+import config
 from sniper import chains
 
 log = logging.getLogger("detector")
@@ -112,10 +113,19 @@ async def _probe_evm_chain(session: aiohttp.ClientSession, rpc: str, address: st
         return False
 
 
+def probe_targets() -> list[str]:
+    """EVM chains to probe for bytecode, respecting ENABLED_CHAINS."""
+    if config.ENABLED_CHAINS:
+        return [k for k in chains.EVM_PROBE_ORDER if k in config.ENABLED_CHAINS]
+    return list(chains.EVM_PROBE_ORDER)
+
+
+def solana_enabled() -> bool:
+    return not config.ENABLED_CHAINS or chains.SOLANA_KEY in config.ENABLED_CHAINS
+
+
 async def _probe_solana(session: aiohttp.ClientSession, address: str) -> bool:
     """True if the address is an SPL token mint on Solana."""
-    import config
-
     rpc = config.rpc_url("solana", chains.SOLANA_DEFAULT_RPC)
     payload = {
         "jsonrpc": "2.0", "id": 1, "method": "getAccountInfo",
@@ -154,14 +164,14 @@ async def detect(text: str) -> list[Detection]:
 
             # Unknown to DexScreener — resolve chain the hard way.
             if address in evm_candidates:
-                for key in chains.EVM_PROBE_ORDER:
+                for key in probe_targets():
                     chain = chains.EVM_CHAINS[key]
                     if await _probe_evm_chain(session, chain.rpc, address):
                         detections.append(Detection(address=address, chain=key))
                         break
                 else:
-                    log.info("EVM address %s has no bytecode on any supported chain; skipping", address)
+                    log.info("EVM address %s has no bytecode on any enabled chain; skipping", address)
             else:
-                if await _probe_solana(session, address):
+                if solana_enabled() and await _probe_solana(session, address):
                     detections.append(Detection(address=address, chain=chains.SOLANA_KEY))
     return detections

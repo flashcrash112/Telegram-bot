@@ -42,6 +42,13 @@ SOLANA_RECIPIENT = os.getenv("SOLANA_RECIPIENT", "").strip()
 
 SEEN_TOKENS_FILE = os.getenv("SEEN_TOKENS_FILE", "seen_tokens.json")
 
+# Chains to act on, e.g. "ethereum,solana". Empty = all supported chains.
+# Detections on other chains are logged but never bought, and EVM RPC
+# probing is limited to the enabled chains.
+ENABLED_CHAINS = [
+    c.strip().lower() for c in os.getenv("ENABLED_CHAINS", "").split(",") if c.strip()
+]
+
 
 def buy_amount(chain_key: str) -> float:
     """Native-coin buy amount for a chain, e.g. buy_amount('bsc') -> BUY_AMOUNT_BSC."""

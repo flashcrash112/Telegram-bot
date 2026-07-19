@@ -65,6 +65,12 @@ class Sniper:
 
     async def buy(self, det: detector.Detection) -> None:
         # ---- safety gates ----
+        if config.ENABLED_CHAINS and det.chain not in config.ENABLED_CHAINS:
+            log.info(
+                "%s is on %s, which is not in ENABLED_CHAINS=%s — skipping",
+                det.address, det.chain, ",".join(config.ENABLED_CHAINS),
+            )
+            return
         if not det.listed and not config.ALLOW_UNLISTED:
             log.warning(
                 "%s on %s is not listed on DexScreener and ALLOW_UNLISTED=false — skipping",
