@@ -1,7 +1,16 @@
 .env
+seen_tokens.json
+
+# Telegram session store (GramJS StoreSession folder, named after TELEGRAM_SESSION)
+/sniper/
 *.session
 *.session-journal
-seen_tokens.json
+
+# Node
+node_modules/
+dist/
+
+# Old Python leftovers
 __pycache__/
 *.pyc
 .venv/

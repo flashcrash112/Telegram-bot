@@ -1,0 +1,30 @@
+{
+  "name": "telegram-contract-sniper",
+  "version": "1.0.0",
+  "description": "Telegram contract sniper with multi-chain detection and auto-buy",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "tsc",
+    "start": "node dist/main.js",
+    "dev": "tsx src/main.ts",
+    "chats": "tsx src/listChats.ts",
+    "test": "vitest run"
+  },
+  "dependencies": {
+    "@solana/web3.js": "^1.95.0",
+    "bs58": "^6.0.0",
+    "dotenv": "^16.4.0",
+    "ethers": "^6.13.0",
+    "telegram": "^2.26.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}

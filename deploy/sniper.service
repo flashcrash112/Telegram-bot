@@ -9,7 +9,7 @@ StartLimitBurst=10
 [Service]
 Type=simple
 WorkingDirectory=/root/Telegram-bot
-ExecStart=/root/Telegram-bot/.venv/bin/python main.py
+ExecStart=/usr/bin/node /root/Telegram-bot/dist/main.js
 Restart=always
 RestartSec=5
 

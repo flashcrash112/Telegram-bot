@@ -45,18 +45,19 @@ Two ways to execute buys, chosen with `BUY_ENGINE` in `.env`:
 
 ## Setup
 
+Requires Node.js 20+.
+
 ```bash
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
+npm install
+npm run build
 ```
 
 Then edit `.env`:
 
 1. **Telegram**: create an app at <https://my.telegram.org> → API development
    tools, copy `TELEGRAM_API_ID` and `TELEGRAM_API_HASH`. This uses your *user
-   account* (via Telethon), not a bot — bots can't read channels they aren't
-   admin of.
+   account* (via GramJS/MTProto), not a bot — bots can't read channels they
+   aren't admin of.
 2. **Chats**: set `TARGET_CHATS` to the groups/channels to watch, e.g.
    `@alphacalls,@gemchannel,-1001234567890`.
 3. **Wallets**: `EVM_PRIVATE_KEY` (used on all EVM chains) and/or
@@ -68,11 +69,18 @@ Then edit `.env`:
 ## Run
 
 ```bash
-python main.py
+node dist/main.js
 ```
 
 The first run asks for your phone number and a login code to create the
-Telegram session file. After that it runs unattended.
+Telegram session (stored in a folder named after `TELEGRAM_SESSION`). After
+that it runs unattended.
+
+To find the numeric IDs of private groups/channels for `TARGET_CHATS`:
+
+```bash
+npm run chats
+```
 
 **Start in dry-run mode** (the default, `DRY_RUN=true`): the bot logs every
 detection and what it *would* buy, without sending transactions. Watch it for a
@@ -92,7 +100,14 @@ day, then set `DRY_RUN=false` when you're confident in the settings.
 
 ## Running 24/7 on a VPS
 
-After the first interactive run (which creates the Telegram session file),
+Install Node.js 20+ first (Ubuntu/Debian):
+
+```bash
+curl -fsSL https://deb.nodesource.com/setup_22.x | bash -
+apt-get install -y nodejs
+```
+
+After the first interactive run (which creates the Telegram session),
 install the bot as a systemd service so it survives reboots and crashes:
 
 ```bash
@@ -101,6 +116,29 @@ cp deploy/sniper.service /etc/systemd/system/sniper.service
 systemctl daemon-reload
 systemctl enable --now sniper
 ```
+
+### Migrating a VPS from the old Python version
+
+The bot was originally written in Python; if your VPS still runs that
+version, upgrade it like this:
+
+```bash
+systemctl stop sniper
+cd /root/Telegram-bot
+git pull
+# install Node.js 20+ (see above), then:
+npm install
+npm run build
+node dist/main.js        # interactive: log in to Telegram again (new session format)
+# Ctrl+C once it says "sniper running", then:
+cp deploy/sniper.service /etc/systemd/system/sniper.service
+systemctl daemon-reload
+systemctl restart sniper
+```
+
+Your `.env` keeps working unchanged. The old Telethon `sniper.session` file
+is not compatible with GramJS, which is why the one-time interactive login is
+needed again.
 
 Useful commands:
 
