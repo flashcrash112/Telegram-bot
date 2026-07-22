@@ -13,8 +13,19 @@ token immediately.
 | Base | ✅ | Uniswap V2 |
 | Arbitrum | ✅ | SushiSwap |
 | Polygon | ✅ | QuickSwap |
+| Robinhood Chain | ✅ | Uniswap V2 |
 | Avalanche | ✅ | Trader Joe |
 | Solana | ✅ | Jupiter aggregator (best route across all Solana DEXes) |
+
+Before enabling buys on a newly added chain (e.g. Robinhood Chain), verify
+its config against the live network:
+
+```bash
+npm run verify:chain robinhood
+```
+
+Every check must PASS. If the router checks fail, set `ROUTER_<KEY>` in
+`.env` to the chain's canonical UniswapV2 router and re-run.
 
 ## How chain detection works
 

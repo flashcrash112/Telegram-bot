@@ -12,6 +12,7 @@
     "start": "node dist/main.js",
     "dev": "tsx src/main.ts",
     "chats": "tsx src/listChats.ts",
+    "verify:chain": "tsx src/verifyChain.ts",
     "test": "vitest run"
   },
   "dependencies": {

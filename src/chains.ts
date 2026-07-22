@@ -22,6 +22,14 @@ export function rpcFor(chain: EvmChain): string {
   return rpcUrl(chain.key, chain.defaultRpc);
 }
 
+/** Effective router for a chain: ROUTER_<KEY> env override or the default.
+ * The override exists for young chains where the canonical Uniswap V2
+ * deployment address may differ from the multichain default.
+ */
+export function routerFor(chain: EvmChain): string {
+  return process.env[`ROUTER_${chain.key.toUpperCase()}`] || chain.router;
+}
+
 const chainList: EvmChain[] = [
   {
     key: "ethereum", name: "Ethereum", chainId: 1,
@@ -59,6 +67,18 @@ const chainList: EvmChain[] = [
     nativeSymbol: "POL", eip1559: true,
   },
   {
+    // Arbitrum Orbit L2 by Robinhood, mainnet since 2026-07-01. Uniswap
+    // v2 is deployed there; the router below is Uniswap's standard
+    // multichain V2Router02 address — run `npm run verify:chain robinhood`
+    // against the live RPC before enabling buys, and set ROUTER_ROBINHOOD
+    // in .env if the check reports a different router.
+    key: "robinhood", name: "Robinhood Chain", chainId: 4663,
+    defaultRpc: "https://rpc.mainnet.chain.robinhood.com",
+    router: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24", // Uniswap V2 (multichain address)
+    wrappedNative: "0x7943e237c7F95DA44E0301572D358911207852Fa",
+    nativeSymbol: "ETH", eip1559: true,
+  },
+  {
     key: "avalanche", name: "Avalanche", chainId: 43114,
     defaultRpc: "https://api.avax.network/ext/bc/C/rpc",
     router: "0x60aE616a2155Ee3d9A68541Ba4544862310933d4", // Trader Joe
@@ -82,5 +102,6 @@ export const EVM_PROBE_ORDER = [
   "base",
   "arbitrum",
   "polygon",
+  "robinhood",
   "avalanche",
 ];
