@@ -9,7 +9,7 @@ import { StoreSession } from "telegram/sessions/index.js";
 import { NewMessage, NewMessageEvent } from "telegram/events/index.js";
 
 import { config, buyAmount } from "./config.js";
-import { EVM_CHAINS, SOLANA_KEY } from "./chains.js";
+import { EVM_CHAINS, SOLANA_KEY, buyEngineFor } from "./chains.js";
 import * as detector from "./detector.js";
 import * as evmBuyer from "./evmBuyer.js";
 import * as relayBuyer from "./relayBuyer.js";
@@ -118,7 +118,7 @@ export class Sniper {
       return;
     }
 
-    const useRelay = config.BUY_ENGINE === "relay";
+    const useRelay = buyEngineFor(det.chain) === "relay";
     const amount = useRelay ? config.RELAY_BUY_AMOUNT : buyAmount(det.chain);
     if (amount <= 0) {
       const varName = useRelay ? "RELAY_BUY_AMOUNT" : `BUY_AMOUNT_${det.chain.toUpperCase()}`;

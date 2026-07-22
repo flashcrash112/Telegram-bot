@@ -1,7 +1,8 @@
 /** Offline tests for the chain registry. */
 import { describe, expect, test } from "vitest";
 
-import { EVM_CHAINS, EVM_PROBE_ORDER, routerFor } from "../src/chains.js";
+import { config } from "../src/config.js";
+import { EVM_CHAINS, EVM_PROBE_ORDER, buyEngineFor, routerFor } from "../src/chains.js";
 import { destinationChainId } from "../src/relayBuyer.js";
 
 describe("chain registry", () => {
@@ -18,6 +19,19 @@ describe("chain registry", () => {
   test("every probe-order key exists in the registry", () => {
     for (const key of EVM_PROBE_ORDER) {
       expect(EVM_CHAINS[key], key).toBeDefined();
+    }
+  });
+
+  test("robinhood defaults to the relay engine, others to global", () => {
+    expect(config.BUY_ENGINE).toBe("native");
+    expect(buyEngineFor("robinhood")).toBe("relay");
+    expect(buyEngineFor("ethereum")).toBe("native");
+    expect(buyEngineFor("solana")).toBe("native");
+    process.env.BUY_ENGINE_ROBINHOOD = "native";
+    try {
+      expect(buyEngineFor("robinhood")).toBe("native");
+    } finally {
+      delete process.env.BUY_ENGINE_ROBINHOOD;
     }
   });
 

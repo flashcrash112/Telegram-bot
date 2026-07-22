@@ -4,7 +4,7 @@
  * straight onto a config. All routers are UniswapV2-compatible, so one
  * ABI covers every chain.
  */
-import { rpcUrl } from "./config.js";
+import { config, rpcUrl } from "./config.js";
 
 export interface EvmChain {
   key: string; // dexscreener chainId
@@ -15,6 +15,10 @@ export interface EvmChain {
   wrappedNative: string;
   nativeSymbol: string;
   eip1559: boolean;
+  // Engine used for this chain when neither BUY_ENGINE_<KEY> nor the
+  // global BUY_ENGINE says otherwise. Set for chains that cannot be
+  // bought natively (e.g. no public UniswapV2 router deployed).
+  preferredEngine?: "native" | "relay";
 }
 
 /** Effective RPC for a chain: RPC_<KEY> env override or the default. */
@@ -33,6 +37,15 @@ export function routerFor(chain: EvmChain): string {
 /** Effective wrapped-native token: WNATIVE_<KEY> env override or the default. */
 export function wrappedNativeFor(chain: EvmChain): string {
   return process.env[`WNATIVE_${chain.key.toUpperCase()}`] || chain.wrappedNative;
+}
+
+/** Buy engine for a chain: BUY_ENGINE_<KEY> env override, else the chain's
+ * preferred engine, else the global BUY_ENGINE.
+ */
+export function buyEngineFor(chainKey: string): string {
+  const override = (process.env[`BUY_ENGINE_${chainKey.toUpperCase()}`] ?? "").trim().toLowerCase();
+  if (override) return override;
+  return EVM_CHAINS[chainKey]?.preferredEngine ?? config.BUY_ENGINE;
 }
 
 const chainList: EvmChain[] = [
@@ -72,16 +85,18 @@ const chainList: EvmChain[] = [
     nativeSymbol: "POL", eip1559: true,
   },
   {
-    // Arbitrum Orbit L2 by Robinhood, mainnet since 2026-07-01. Uniswap
-    // v2 is deployed there; the router below is Uniswap's standard
-    // multichain V2Router02 address — run `npm run verify:chain robinhood`
-    // against the live RPC before enabling buys, and set ROUTER_ROBINHOOD
-    // in .env if the check reports a different router.
+    // Arbitrum Orbit L2 by Robinhood, mainnet since 2026-07-01. Pools are
+    // UniswapV2-style but no public V2Router02 is deployed (swaps go
+    // through Uniswap's Universal Router), so buys default to the Relay
+    // engine. If a V2 router appears, set ROUTER_ROBINHOOD and
+    // BUY_ENGINE_ROBINHOOD=native in .env after `npm run verify:chain`.
+    // wrappedNative was read off the live ROBINHOOD/WETH pair on-chain.
     key: "robinhood", name: "Robinhood Chain", chainId: 4663,
     defaultRpc: "https://rpc.mainnet.chain.robinhood.com",
-    router: "0x4752ba5DBc23f44D87826276BF6Fd6b1C372aD24", // Uniswap V2 (multichain address)
-    wrappedNative: "0x7943e237c7F95DA44E0301572D358911207852Fa",
+    router: "0x0000000000000000000000000000000000000000", // none deployed — see note above
+    wrappedNative: "0x0Bd7D308f8E1639FAb988df18A8011f41EAcAD73",
     nativeSymbol: "ETH", eip1559: true,
+    preferredEngine: "relay",
   },
   {
     key: "avalanche", name: "Avalanche", chainId: 43114,

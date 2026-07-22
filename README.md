@@ -13,7 +13,7 @@ token immediately.
 | Base | ✅ | Uniswap V2 |
 | Arbitrum | ✅ | SushiSwap |
 | Polygon | ✅ | QuickSwap |
-| Robinhood Chain | ✅ | Uniswap V2 |
+| Robinhood Chain | ✅ | Relay (no public V2 router on-chain yet) |
 | Avalanche | ✅ | Trader Joe |
 | Solana | ✅ | Jupiter aggregator (best route across all Solana DEXes) |
 
@@ -53,6 +53,10 @@ Two ways to execute buys, chosen with `BUY_ENGINE` in `.env`:
   SPL tokens on Solana (set `SOLANA_RECIPIENT`, or it defaults to your
   `SOLANA_PRIVATE_KEY`'s pubkey). Much simpler treasury management, at the
   cost of a small relay fee and a few extra seconds per fill.
+
+The engine can also be set per chain with `BUY_ENGINE_<KEY>` (e.g.
+`BUY_ENGINE_ROBINHOOD=native`). Robinhood Chain defaults to the relay engine
+because no public UniswapV2 router is deployed there.
 
 ## Setup
 
