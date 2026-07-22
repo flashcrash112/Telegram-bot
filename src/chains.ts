@@ -30,6 +30,11 @@ export function routerFor(chain: EvmChain): string {
   return process.env[`ROUTER_${chain.key.toUpperCase()}`] || chain.router;
 }
 
+/** Effective wrapped-native token: WNATIVE_<KEY> env override or the default. */
+export function wrappedNativeFor(chain: EvmChain): string {
+  return process.env[`WNATIVE_${chain.key.toUpperCase()}`] || chain.wrappedNative;
+}
+
 const chainList: EvmChain[] = [
   {
     key: "ethereum", name: "Ethereum", chainId: 1,

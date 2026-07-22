@@ -13,6 +13,7 @@
     "dev": "tsx src/main.ts",
     "chats": "tsx src/listChats.ts",
     "verify:chain": "tsx src/verifyChain.ts",
+    "discover:chain": "tsx src/discoverChain.ts",
     "test": "vitest run"
   },
   "dependencies": {

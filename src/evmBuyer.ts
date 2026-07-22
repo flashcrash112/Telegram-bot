@@ -6,7 +6,7 @@
 import { Contract, JsonRpcProvider, Wallet, getAddress, parseEther, parseUnits, formatEther } from "ethers";
 
 import { config } from "./config.js";
-import { EvmChain, routerFor, rpcFor } from "./chains.js";
+import { EvmChain, routerFor, rpcFor, wrappedNativeFor } from "./chains.js";
 import { makeLog } from "./log.js";
 
 const log = makeLog("evm_buyer");
@@ -32,7 +32,7 @@ export async function buy(
   });
   const wallet = new Wallet(config.EVM_PRIVATE_KEY, provider);
   const router = new Contract(getAddress(routerFor(chain)), ROUTER_ABI, wallet);
-  const path = [getAddress(chain.wrappedNative), getAddress(tokenAddress)];
+  const path = [getAddress(wrappedNativeFor(chain)), getAddress(tokenAddress)];
   const amountIn = parseEther(String(amountNative));
 
   const balance = await provider.getBalance(wallet.address);

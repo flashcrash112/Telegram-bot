@@ -15,7 +15,7 @@
  */
 import { Contract, JsonRpcProvider, getAddress } from "ethers";
 
-import { EVM_CHAINS, rpcFor, routerFor } from "./chains.js";
+import { EVM_CHAINS, rpcFor, routerFor, wrappedNativeFor } from "./chains.js";
 
 const ROUTER_PROBE_ABI = [
   "function WETH() view returns (address)",
@@ -41,10 +41,11 @@ async function main(): Promise<void> {
 
   const rpc = rpcFor(chain);
   const routerAddr = routerFor(chain);
+  const wnative = wrappedNativeFor(chain);
   console.log(`Verifying ${chain.name} (key '${chain.key}')`);
   console.log(`  rpc:            ${rpc}`);
   console.log(`  router:         ${routerAddr}`);
-  console.log(`  wrapped native: ${chain.wrappedNative}`);
+  console.log(`  wrapped native: ${wnative}`);
   console.log();
 
   const provider = new JsonRpcProvider(rpc, chain.chainId, { staticNetwork: true });
@@ -65,10 +66,10 @@ async function main(): Promise<void> {
   }
 
   // 2. wrapped native is a contract with a symbol
-  const wnativeCode = await provider.getCode(getAddress(chain.wrappedNative)).catch(() => "0x");
-  report(wnativeCode.length > 2, "wrapped native bytecode", chain.wrappedNative);
+  const wnativeCode = await provider.getCode(getAddress(wnative)).catch(() => "0x");
+  report(wnativeCode.length > 2, "wrapped native bytecode", wnative);
   if (wnativeCode.length > 2) {
-    const symbol = await new Contract(chain.wrappedNative, ERC20_ABI, provider)
+    const symbol = await new Contract(wnative, ERC20_ABI, provider)
       .symbol()
       .catch(() => "?");
     report(typeof symbol === "string" && symbol.length > 0, "wrapped native symbol", symbol);
@@ -84,7 +85,7 @@ async function main(): Promise<void> {
     const wethFromRouter: string | null = await router.WETH().catch(() => null);
     report(
       wethFromRouter !== null &&
-        wethFromRouter.toLowerCase() === chain.wrappedNative.toLowerCase(),
+        wethFromRouter.toLowerCase() === wnative.toLowerCase(),
       "router.WETH() matches",
       wethFromRouter ?? "call failed (not a V2 router?)"
     );
