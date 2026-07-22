@@ -122,25 +122,47 @@ async function main(): Promise<void> {
 
   // ---- 3. find a router that matches factory + wrapped native ----
   const matches: { address: string; name: string }[] = [];
+  const tested = new Set<string>();
+  const testCandidate = async (addr: string | undefined, name: string): Promise<void> => {
+    if (!addr || tested.has(addr.toLowerCase())) return;
+    tested.add(addr.toLowerCase());
+    const router = new Contract(addr, ROUTER_ABI, provider);
+    const [rFactory, rWeth] = await Promise.all([
+      router.factory().catch(() => null),
+      router.WETH().catch(() => null),
+    ]);
+    if (
+      rFactory?.toLowerCase() === factory.toLowerCase() &&
+      rWeth?.toLowerCase() === wnative.toLowerCase()
+    ) {
+      matches.push({ address: addr, name });
+    }
+  };
+
   const explorer = BLOCKSCOUT[chain.key];
   if (explorer) {
+    // 3a. verified contracts whose name looks like a V2 router
     for (const q of ["UniswapV2Router02", "V2Router", "Router02"]) {
       const data = await json(`${explorer}/api/v2/search?q=${q}`).catch(() => null);
       for (const item of data?.items ?? []) {
-        const addr = item?.address ?? item?.address_hash;
-        if (!addr || item?.type !== "contract") continue;
-        if (matches.some((m) => m.address.toLowerCase() === addr.toLowerCase())) continue;
-        const router = new Contract(addr, ROUTER_ABI, provider);
-        const [rFactory, rWeth] = await Promise.all([
-          router.factory().catch(() => null),
-          router.WETH().catch(() => null),
-        ]);
-        if (
-          rFactory?.toLowerCase() === factory.toLowerCase() &&
-          rWeth?.toLowerCase() === wnative.toLowerCase()
-        ) {
-          matches.push({ address: addr, name: item?.name ?? q });
-        }
+        if (item?.type !== "contract") continue;
+        await testCandidate(item?.address ?? item?.address_hash, item?.name ?? q);
+      }
+    }
+    // 3b. fallback: whoever actually executes swaps against the pair.
+    // Swap transactions are sent TO a router, which then calls the pair —
+    // so the routers show up as tx targets and internal-tx callers.
+    if (!matches.length) {
+      console.log("No verified router by name — scanning the pair's recent transactions...");
+      const [txs, itxs] = await Promise.all([
+        json(`${explorer}/api/v2/addresses/${pairAddress}/transactions`).catch(() => null),
+        json(`${explorer}/api/v2/addresses/${pairAddress}/internal-transactions`).catch(() => null),
+      ]);
+      const candidates: string[] = [];
+      for (const item of txs?.items ?? []) candidates.push(item?.to?.hash);
+      for (const item of itxs?.items ?? []) candidates.push(item?.from?.hash, item?.to?.hash);
+      for (const addr of candidates.filter(Boolean).slice(0, 60)) {
+        await testCandidate(addr, "found via pair swap traffic");
       }
     }
   } else {
