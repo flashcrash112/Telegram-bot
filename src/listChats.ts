@@ -1,5 +1,6 @@
-/** Print every chat this Telegram account can see, with the ID to use
- * in TARGET_CHATS. Run: npm run chats
+/** Print every chat a Telegram account can see, with the ID to use in
+ * TARGET_CHATS. Run: npm run chats            (first configured session)
+ *      or: npm run chats -- <session-name>    (a specific account)
  */
 import readline from "node:readline/promises";
 
@@ -9,8 +10,10 @@ import { StoreSession } from "telegram/sessions/index.js";
 import { config } from "./config.js";
 
 async function main(): Promise<void> {
+  const session = process.argv[2] ?? config.TELEGRAM_SESSIONS[0];
+  console.log(`Listing chats for session '${session}'`);
   const client = new TelegramClient(
-    new StoreSession(config.TELEGRAM_SESSION),
+    new StoreSession(session),
     config.TELEGRAM_API_ID,
     config.TELEGRAM_API_HASH,
     { connectionRetries: 5 }

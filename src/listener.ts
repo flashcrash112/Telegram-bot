@@ -19,16 +19,22 @@ import { makeLog } from "./log.js";
 const log = makeLog("listener");
 
 export class Sniper {
-  private client: TelegramClient;
+  private clients: { name: string; client: TelegramClient }[];
   private seen: Set<string>;
 
   constructor() {
-    this.client = new TelegramClient(
-      new StoreSession(config.TELEGRAM_SESSION),
-      config.TELEGRAM_API_ID,
-      config.TELEGRAM_API_HASH,
-      { connectionRetries: 5 }
-    );
+    // One listening account per configured session. All accounts feed the
+    // same pipeline and share the seen-tokens dedupe, so a token posted in
+    // several watched chats (or seen by several accounts) is bought once.
+    this.clients = config.TELEGRAM_SESSIONS.map((name) => ({
+      name,
+      client: new TelegramClient(
+        new StoreSession(name),
+        config.TELEGRAM_API_ID,
+        config.TELEGRAM_API_HASH,
+        { connectionRetries: 5 }
+      ),
+    }));
     this.seen = this.loadSeen();
   }
 
@@ -160,37 +166,42 @@ export class Sniper {
   // ---------- entrypoint ----------
 
   async run(): Promise<void> {
-    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
-    await this.client.start({
-      phoneNumber: () => rl.question("Phone number (international format): "),
-      password: () => rl.question("2FA password: "),
-      phoneCode: () => rl.question("Login code you received: "),
-      onError: async (err) => {
-        log.error("login error", err);
-        return true;
-      },
-    });
-    rl.close();
-
-    const me: any = await this.client.getMe();
-    log.info(`logged in as ${me.username || me.firstName}`);
-
-    // Accept numeric IDs alongside @usernames.
+    // Accept numeric IDs alongside @usernames. The same list applies to
+    // every account; numeric IDs simply never match for an account that
+    // is not in that chat.
     const target = config.TARGET_CHATS.map((t) =>
       /^-?\d+$/.test(t) ? Number(t) : t
     );
+
+    const rl = readline.createInterface({ input: process.stdin, output: process.stdout });
+    for (const { name, client } of this.clients) {
+      await client.start({
+        phoneNumber: () => rl.question(`[${name}] Phone number (international format): `),
+        password: () => rl.question(`[${name}] 2FA password: `),
+        phoneCode: () => rl.question(`[${name}] Login code you received: `),
+        onError: async (err) => {
+          log.error(`[${name}] login error`, err);
+          return true;
+        },
+      });
+      const me: any = await client.getMe();
+      log.info(`[${name}] logged in as ${me.username || me.firstName}`);
+
+      client.addEventHandler(
+        (event: NewMessageEvent) => this.handleMessage(event),
+        new NewMessage(target.length ? { chats: target } : {})
+      );
+    }
+    rl.close();
+
     if (target.length) {
       log.info(`listening to ${target.length} chat(s): [${target.join(", ")}]`);
     } else {
-      log.warn("TARGET_CHATS is empty — listening to ALL chats on this account");
+      log.warn("TARGET_CHATS is empty — listening to ALL chats on these accounts");
     }
-
-    this.client.addEventHandler(
-      (event: NewMessageEvent) => this.handleMessage(event),
-      new NewMessage(target.length ? { chats: target } : {})
-    );
     log.info(
-      `sniper running (dry_run=${config.DRY_RUN ? "True" : "False"}, ` +
+      `sniper running (${this.clients.length} account(s), ` +
+        `dry_run=${config.DRY_RUN ? "True" : "False"}, ` +
         `min_liquidity=$${config.MIN_LIQUIDITY_USD})`
     );
     await new Promise(() => {}); // run until the process is stopped

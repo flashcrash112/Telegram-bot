@@ -17,6 +17,14 @@ export const config = {
   TELEGRAM_API_HASH: process.env.TELEGRAM_API_HASH ?? "",
   TELEGRAM_SESSION: process.env.TELEGRAM_SESSION ?? "sniper",
 
+  // One listener account per session name (comma-separated). Each name is
+  // a session-store folder; unknown ones trigger an interactive login on
+  // the next foreground run. Falls back to the single TELEGRAM_SESSION.
+  TELEGRAM_SESSIONS: (process.env.TELEGRAM_SESSIONS ?? process.env.TELEGRAM_SESSION ?? "sniper")
+    .split(",")
+    .map((s) => s.trim())
+    .filter(Boolean),
+
   TARGET_CHATS: (process.env.TARGET_CHATS ?? "")
     .split(",")
     .map((c) => c.trim())

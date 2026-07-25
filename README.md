@@ -91,6 +91,18 @@ The first run asks for your phone number and a login code to create the
 Telegram session (stored in a folder named after `TELEGRAM_SESSION`). After
 that it runs unattended.
 
+### Scanning with multiple Telegram accounts
+
+Set `TELEGRAM_SESSIONS` to a comma-separated list of session names, e.g.
+`TELEGRAM_SESSIONS=sniper,alt`. Each name is a separate login (own phone
+number); on the next foreground run (`node dist/main.js`) any session
+without saved credentials asks for its login interactively, prefixed with
+the session name. All accounts share `TARGET_CHATS`, the detection
+pipeline, and duplicate protection — a token seen by several accounts is
+bought once. One `TELEGRAM_API_ID`/`HASH` pair works for all accounts.
+The `.gitignore` covers the default `sniper` session folder; add a line
+for each extra session folder name (e.g. `/alt/`).
+
 To find the numeric IDs of private groups/channels for `TARGET_CHATS`:
 
 ```bash
