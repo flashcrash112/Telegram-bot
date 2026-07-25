@@ -1,4 +1,5 @@
 .env
+.env.secrets
 seen_tokens.json
 
 # Telegram session store (GramJS StoreSession folder, named after TELEGRAM_SESSION)

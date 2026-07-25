@@ -1,5 +1,14 @@
-/** Environment-driven configuration. */
-import "dotenv/config";
+/** Environment-driven configuration.
+ *
+ * Settings load from .env; secrets (private keys, API hash) belong in
+ * .env.secrets so that opening or screenshotting .env never exposes
+ * them. Both files use the same KEY=value format; .env wins on
+ * duplicates, so keep each key in exactly one file.
+ */
+import { config as loadEnv } from "dotenv";
+
+loadEnv();
+loadEnv({ path: ".env.secrets" });
 
 function boolEnv(name: string, def: boolean): boolean {
   const raw = (process.env[name] ?? String(def)).trim().toLowerCase();
