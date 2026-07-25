@@ -204,6 +204,20 @@ things you can do with a wallet**:
 
 Use small amounts, a throwaway wallet, and expect to lose what you deploy.
 
+## Daily limits
+
+Rolling 24-hour brakes, the main protection in a busy channel (0 = off):
+
+```
+MAX_BUYS_PER_DAY=3          # at most 3 buys in any 24h window
+MAX_SPEND_PER_DAY_USD=150   # and at most $150 of sized value
+```
+
+The window is rolling, not calendar-day, so a burst of calls cannot
+reset itself at midnight. Dry-run buys count too, so paper results
+reflect what would really have happened. Blocked calls are logged with
+the reason and when the next slot frees up.
+
 ## Taking profit
 
 The bot tracks every token it buys as a position and can exit it

@@ -62,6 +62,12 @@ export const config = {
   // See src/sizing.ts. Empty = use the fixed per-chain amounts.
   BUY_TIERS_USD: (process.env.BUY_TIERS_USD ?? "").trim(),
 
+  // Rolling 24h limits; 0 = unlimited. These are the main brake on a
+  // busy channel: without them the bot buys every address it sees.
+  MAX_BUYS_PER_DAY: Math.trunc(floatEnv("MAX_BUYS_PER_DAY", 0)),
+  MAX_SPEND_PER_DAY_USD: floatEnv("MAX_SPEND_PER_DAY_USD", 0),
+  BUY_HISTORY_FILE: process.env.BUY_HISTORY_FILE ?? "buy_history.json",
+
   // ---- selling ----
   // Take-profit ladder, e.g. "2:50,5:30,10:20" (see src/takeProfit.ts).
   // Empty and STOP_LOSS_PCT=0 means the position monitor never starts.

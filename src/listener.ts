@@ -16,6 +16,7 @@ import * as evmSwap from "./evmSwap.js";
 import * as relaySwap from "./relaySwap.js";
 import * as solanaSwap from "./solanaSwap.js";
 import { openPosition } from "./positions.js";
+import { checkLimits, loadHistory, recordBuy } from "./rateLimit.js";
 import { makeLog } from "./log.js";
 
 const log = makeLog("listener");
@@ -129,6 +130,7 @@ export class Sniper {
     const useRelay = buyEngineFor(det.chain) === "relay";
     let amount = useRelay ? config.RELAY_BUY_AMOUNT : buyAmount(det.chain);
     let sizeNote = "";
+    let sizedUsd = 0;
 
     // Market-cap-tiered sizing overrides the fixed amounts when possible.
     const tiers = parseTiers(config.BUY_TIERS_USD);
@@ -162,6 +164,7 @@ export class Sniper {
         );
       } else {
         amount = Number((usd / nativeUsd).toFixed(9));
+        sizedUsd = usd;
         sizeNote =
           ` [tier $${usd} at mcap $${Math.round(det.marketCap).toLocaleString("en-US")}` +
           ` @ $${nativeUsd.toFixed(2)}/${destSymbol}]`;
@@ -181,6 +184,17 @@ export class Sniper {
       return;
     }
 
+    // Rolling 24h limits — the brake on a busy channel. Dry runs count
+    // too, so paper results reflect what would really have happened.
+    const now = Date.now();
+    const verdict = checkLimits(
+      loadHistory(), sizedUsd, now, config.MAX_BUYS_PER_DAY, config.MAX_SPEND_PER_DAY_USD
+    );
+    if (!verdict.allowed) {
+      log.warn(`skipping ${det.symbol} (${det.address}) — ${verdict.reason}`);
+      return;
+    }
+
     // Entry price for the take-profit ladder. Without one there is
     // nothing to measure a multiple against, so no position is tracked.
     const entryPriceUsd = parseFloat(det.priceUsd);
@@ -191,6 +205,7 @@ export class Sniper {
         `DRY RUN: would buy ${amount} worth of ${det.symbol} (${det.address}) ` +
           `on ${det.chain}${origin}${sizeNote}`
       );
+      recordBuy({ at: new Date(now).toISOString(), usd: sizedUsd, symbol: det.symbol }, now);
       if (entryPriceUsd > 0) {
         openPosition({
           address: det.address, chain: det.chain, symbol: det.symbol,
@@ -212,6 +227,7 @@ export class Sniper {
         const tx = await evmSwap.buy(evmChain, det.address, amount);
         log.info(`BOUGHT ${det.symbol} on ${evmChain.name} — tx ${tx}`);
       }
+      recordBuy({ at: new Date(now).toISOString(), usd: sizedUsd, symbol: det.symbol }, now);
       if (entryPriceUsd > 0) {
         openPosition({
           address: det.address, chain: det.chain, symbol: det.symbol,
