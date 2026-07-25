@@ -130,24 +130,20 @@ export class Sniper {
     const useRelay = buyEngineFor(det.chain) === "relay";
     let amount = useRelay ? config.RELAY_BUY_AMOUNT : buyAmount(det.chain);
     let sizeNote = "";
-    let sizedUsd = 0;
+
+    // The coin actually spent: the origin chain's for a Relay buy,
+    // otherwise the destination chain's. Its price comes from its own
+    // market — never inferred from the detected token's pair, whose
+    // quote side may be a stablecoin.
+    const payChainKey = useRelay ? config.RELAY_ORIGIN_CHAIN : det.chain;
+    const paySymbol =
+      payChainKey === SOLANA_KEY ? "SOL" : EVM_CHAINS[payChainKey]?.nativeSymbol ?? "?";
+    const nativeUsd = await detector.nativeUsdPrice(payChainKey);
 
     // Market-cap-tiered sizing overrides the fixed amounts when possible.
     const tiers = parseTiers(config.BUY_TIERS_USD);
     if (tiers.length && det.listed) {
-      const destSymbol =
-        det.chain === SOLANA_KEY ? "SOL" : EVM_CHAINS[det.chain]?.nativeSymbol ?? "?";
-      const originSymbol = useRelay
-        ? EVM_CHAINS[config.RELAY_ORIGIN_CHAIN]?.nativeSymbol ?? "?"
-        : destSymbol;
       const usd = tierAmountUsd(tiers, det.marketCap);
-      // The coin actually spent: the origin chain's for a Relay buy,
-      // otherwise the destination chain's. Its price is looked up from
-      // its own market — never inferred from the detected token's pair,
-      // whose quote side may be a stablecoin.
-      const payChain = useRelay ? config.RELAY_ORIGIN_CHAIN : det.chain;
-      const nativeUsd = await detector.nativeUsdPrice(payChain);
-
       if (usd === null) {
         log.warn(
           `no BUY_TIERS_USD tier covers market cap $${Math.round(det.marketCap)} — ` +
@@ -155,21 +151,19 @@ export class Sniper {
         );
       } else if (!(nativeUsd > 0)) {
         log.warn(
-          `could not price ${originSymbol} on ${payChain} for tiered sizing — using fixed amount`
+          `could not price ${paySymbol} on ${payChainKey} for tiered sizing — using fixed amount`
         );
       } else {
         amount = Number((usd / nativeUsd).toFixed(9));
-        sizedUsd = usd;
         sizeNote =
           ` [tier $${usd} at mcap $${Math.round(det.marketCap).toLocaleString("en-US")}` +
-          ` @ $${nativeUsd.toFixed(2)}/${originSymbol}]`;
+          ` @ $${nativeUsd.toFixed(2)}/${paySymbol}]`;
       }
     }
 
     // Absolute per-buy ceiling in the coin actually spent. A backstop
     // against any sizing mistake: no single buy can exceed it, whatever
     // the tier maths produced.
-    const payChainKey = useRelay ? config.RELAY_ORIGIN_CHAIN : det.chain;
     const ceiling = maxBuyNative(payChainKey);
     if (ceiling > 0 && amount > ceiling) {
       log.warn(
@@ -179,6 +173,10 @@ export class Sniper {
       amount = ceiling;
       sizeNote += ` [capped at ${ceiling}]`;
     }
+
+    // What this buy really costs, after any cap — this, not the notional
+    // tier, is what the daily spend limit must count.
+    const sizedUsd = nativeUsd > 0 ? amount * nativeUsd : 0;
 
     if (amount <= 0) {
       const varName = useRelay ? "RELAY_BUY_AMOUNT" : `BUY_AMOUNT_${det.chain.toUpperCase()}`;
