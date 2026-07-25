@@ -95,6 +95,13 @@ export function buyAmount(chainKey: string): number {
   return floatEnv(`BUY_AMOUNT_${chainKey.toUpperCase()}`, 0);
 }
 
+/** Hard per-buy ceiling in a chain's native coin; 0 = no ceiling.
+ * A backstop against sizing mistakes, independent of the tier table.
+ */
+export function maxBuyNative(chainKey: string): number {
+  return floatEnv(`MAX_BUY_NATIVE_${chainKey.toUpperCase()}`, 0);
+}
+
 export function rpcUrl(chainKey: string, def: string): string {
   return process.env[`RPC_${chainKey.toUpperCase()}`] || def;
 }

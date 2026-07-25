@@ -14,7 +14,9 @@
 import bs58 from "bs58";
 
 import { config, rpcUrl } from "./config.js";
-import { EVM_CHAINS, EVM_PROBE_ORDER, SOLANA_DEFAULT_RPC, SOLANA_KEY, rpcFor } from "./chains.js";
+import {
+  EVM_CHAINS, EVM_PROBE_ORDER, SOLANA_DEFAULT_RPC, SOLANA_KEY, rpcFor, wrappedNativeFor,
+} from "./chains.js";
 import { makeLog } from "./log.js";
 
 const log = makeLog("detector");
@@ -175,6 +177,61 @@ async function probeSolana(address: string): Promise<boolean> {
     "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA",
     "TokenzQdBNbLqP5VEhdkAS6EPFLC1PHnBqCXEpPxuEb",
   ].includes(value?.owner ?? "");
+}
+
+// The native coin's USD price, cached briefly. Sizing must never infer
+// it from a detected token's priceUsd/priceNative ratio: DexScreener's
+// priceNative is denominated in the PAIR's quote token, which is often
+// a stablecoin, and treating that as the native coin inflates buy
+// amounts by the native coin's USD price (e.g. $300 -> 300 ETH).
+const nativePriceCache = new Map<string, { usd: number; at: number }>();
+const NATIVE_PRICE_TTL_MS = 60_000;
+
+export async function nativeUsdPrice(chainKey: string): Promise<number> {
+  const cached = nativePriceCache.get(chainKey);
+  if (cached && Date.now() - cached.at < NATIVE_PRICE_TTL_MS) return cached.usd;
+
+  let nativeAddress: string;
+  if (chainKey === SOLANA_KEY) {
+    nativeAddress = "So11111111111111111111111111111111111111112";
+  } else {
+    const chain = EVM_CHAINS[chainKey];
+    if (!chain) return 0;
+    nativeAddress = wrappedNativeFor(chain);
+  }
+
+  const resp = await fetchJson(DEXSCREENER_TOKEN_URL + nativeAddress, {}, 8000);
+  if (!resp || resp.status !== 200) return 0;
+
+  const pairs: any[] = (resp.data?.pairs ?? [])
+    .slice()
+    .sort((a: any, b: any) => (b?.liquidity?.usd ?? 0) - (a?.liquidity?.usd ?? 0));
+
+  for (const pair of pairs) {
+    const base = (pair?.baseToken?.address ?? "").toLowerCase();
+    const quote = (pair?.quoteToken?.address ?? "").toLowerCase();
+    const target = nativeAddress.toLowerCase();
+    // The native coin priced directly (e.g. a WETH/USDC pool).
+    if (base === target) {
+      const usd = parseFloat(pair?.priceUsd ?? "");
+      if (usd > 0) {
+        nativePriceCache.set(chainKey, { usd, at: Date.now() });
+        return usd;
+      }
+    }
+    // Or a pool QUOTED in the native coin: the other token's USD price
+    // divided by its native-denominated price is the native coin's price.
+    if (quote === target) {
+      const priceUsd = parseFloat(pair?.priceUsd ?? "");
+      const priceNative = parseFloat(pair?.priceNative ?? "");
+      if (priceUsd > 0 && priceNative > 0) {
+        const usd = priceUsd / priceNative;
+        nativePriceCache.set(chainKey, { usd, at: Date.now() });
+        return usd;
+      }
+    }
+  }
+  return 0;
 }
 
 /** Find every tradable token address in `text` with its chain resolved. */

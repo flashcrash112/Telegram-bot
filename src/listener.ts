@@ -8,7 +8,7 @@ import { TelegramClient } from "telegram";
 import { StoreSession } from "telegram/sessions/index.js";
 import { NewMessage, NewMessageEvent } from "telegram/events/index.js";
 
-import { config, buyAmount } from "./config.js";
+import { config, buyAmount, maxBuyNative } from "./config.js";
 import { EVM_CHAINS, SOLANA_KEY, buyEngineFor } from "./chains.js";
 import { parseTiers, tierAmountUsd } from "./sizing.js";
 import * as detector from "./detector.js";
@@ -141,11 +141,12 @@ export class Sniper {
         ? EVM_CHAINS[config.RELAY_ORIGIN_CHAIN]?.nativeSymbol ?? "?"
         : destSymbol;
       const usd = tierAmountUsd(tiers, det.marketCap);
-      const priceUsd = parseFloat(det.priceUsd);
-      const priceNative = parseFloat(det.priceNative);
-      // Token price in USD divided by its price in the native coin gives
-      // the native coin's USD price — no extra API call needed.
-      const nativeUsd = priceUsd > 0 && priceNative > 0 ? priceUsd / priceNative : 0;
+      // The coin actually spent: the origin chain's for a Relay buy,
+      // otherwise the destination chain's. Its price is looked up from
+      // its own market — never inferred from the detected token's pair,
+      // whose quote side may be a stablecoin.
+      const payChain = useRelay ? config.RELAY_ORIGIN_CHAIN : det.chain;
+      const nativeUsd = await detector.nativeUsdPrice(payChain);
 
       if (usd === null) {
         log.warn(
@@ -154,21 +155,29 @@ export class Sniper {
         );
       } else if (!(nativeUsd > 0)) {
         log.warn(
-          `cannot derive ${destSymbol} price for tiered sizing ` +
-            `(priceUsd=${det.priceUsd}, priceNative=${det.priceNative}) — using fixed amount`
-        );
-      } else if (useRelay && originSymbol !== destSymbol) {
-        log.warn(
-          `tiered sizing needs matching native coins, but Relay origin pays ${originSymbol} ` +
-            `while ${det.chain} uses ${destSymbol} — using fixed RELAY_BUY_AMOUNT`
+          `could not price ${originSymbol} on ${payChain} for tiered sizing — using fixed amount`
         );
       } else {
         amount = Number((usd / nativeUsd).toFixed(9));
         sizedUsd = usd;
         sizeNote =
           ` [tier $${usd} at mcap $${Math.round(det.marketCap).toLocaleString("en-US")}` +
-          ` @ $${nativeUsd.toFixed(2)}/${destSymbol}]`;
+          ` @ $${nativeUsd.toFixed(2)}/${originSymbol}]`;
       }
+    }
+
+    // Absolute per-buy ceiling in the coin actually spent. A backstop
+    // against any sizing mistake: no single buy can exceed it, whatever
+    // the tier maths produced.
+    const payChainKey = useRelay ? config.RELAY_ORIGIN_CHAIN : det.chain;
+    const ceiling = maxBuyNative(payChainKey);
+    if (ceiling > 0 && amount > ceiling) {
+      log.warn(
+        `sized amount ${amount} exceeds MAX_BUY_NATIVE_${payChainKey.toUpperCase()}=${ceiling} ` +
+          `— capping at ${ceiling}`
+      );
+      amount = ceiling;
+      sizeNote += ` [capped at ${ceiling}]`;
     }
 
     if (amount <= 0) {

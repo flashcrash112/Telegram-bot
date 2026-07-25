@@ -88,10 +88,20 @@ Then edit `.env`:
    ```
 
    means under $50k mcap buy $50, $50–100k buy $100, …, above $1m buy
-   $300. The USD size is converted to the native coin at the token's
-   current DexScreener prices. Falls back to the fixed amounts when the
-   market cap or native price is unknown, or when a Relay buy's origin
-   coin differs from the destination chain's native coin.
+   $300. The USD size is converted using the price of the coin actually
+   spent — the origin chain's coin for a Relay buy — looked up from that
+   coin's own market. Falls back to the fixed amounts when the market cap
+   or the native price is unavailable.
+
+   Set a hard ceiling per chain as a backstop against any sizing mistake:
+
+   ```
+   MAX_BUY_NATIVE_SOLANA=0.5     # never spend more than 0.5 SOL on one buy
+   MAX_BUY_NATIVE_BASE=0.02      # nor more than 0.02 ETH from the Relay origin
+   ```
+
+   A sized amount above the ceiling is capped (and logged), so no pricing
+   error can turn a $300 buy into a wallet-emptying one.
 
 ## Run
 
