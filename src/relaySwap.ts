@@ -139,6 +139,79 @@ export async function buy(
   return txHash;
 }
 
+/** Sell `amountRaw` base units of a token on `chainKey` back into the
+ * origin chain's native coin, cross-chain via Relay.
+ *
+ * The transactions (including any ERC20 approval Relay asks for) are
+ * signed on the token's own chain, so the wallet needs a little native
+ * coin there for gas — bridging to that chain once is a prerequisite.
+ */
+export async function sell(
+  chainKey: string,
+  tokenAddress: string,
+  amountRaw: bigint
+): Promise<string> {
+  if (!config.EVM_PRIVATE_KEY) {
+    throw new Error("EVM_PRIVATE_KEY is not set (Relay origin wallet)");
+  }
+  const source = EVM_CHAINS[chainKey];
+  if (!source) throw new Error(`chain '${chainKey}' cannot be sold via Relay`);
+  const destination = EVM_CHAINS[config.RELAY_ORIGIN_CHAIN];
+
+  const provider = new JsonRpcProvider(rpcFor(source), source.chainId, { staticNetwork: true });
+  const wallet = new Wallet(config.EVM_PRIVATE_KEY, provider);
+
+  const gas = await provider.getBalance(wallet.address);
+  if (gas === 0n) {
+    throw new Error(
+      `no ${source.nativeSymbol} on ${source.name} to pay gas for the sell — ` +
+        `bridge a small amount to ${source.name} first`
+    );
+  }
+
+  const body = {
+    user: wallet.address,
+    recipient: wallet.address,
+    originChainId: source.chainId,
+    destinationChainId: destination.chainId,
+    originCurrency: getAddress(tokenAddress),
+    destinationCurrency: NATIVE_EVM,
+    amount: amountRaw.toString(),
+    tradeType: "EXACT_INPUT",
+    slippageTolerance: String(config.SLIPPAGE_BPS),
+  };
+
+  const quoteResp = await fetch(`${RELAY_API}/quote`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify(body),
+    signal: AbortSignal.timeout(15_000),
+  });
+  const quote = await quoteResp.json();
+  if (quoteResp.status !== 200) {
+    throw new Error(`Relay sell quote failed (${quoteResp.status}): ${JSON.stringify(quote)}`);
+  }
+
+  let txHash = "";
+  const checkEndpoints: string[] = [];
+  for (const step of quote.steps ?? []) {
+    if (step.kind !== "transaction") continue;
+    for (const item of step.items ?? []) {
+      txHash = await sendOriginTx(provider, wallet, source, item.data ?? {});
+      log.info(`[Relay] sell step '${step.id}' sent on ${source.name}: ${txHash}`);
+      if (item.check?.endpoint) checkEndpoints.push(item.check.endpoint);
+    }
+  }
+  if (!txHash) {
+    throw new Error(`Relay sell quote returned no executable steps: ${JSON.stringify(quote)}`);
+  }
+
+  for (const endpoint of checkEndpoints) {
+    await waitForFill(endpoint);
+  }
+  return txHash;
+}
+
 /** Relay may return numeric fields as int, decimal string, or hex string. */
 export function toInt(value: unknown): bigint {
   if (value === null || value === undefined) return 0n;

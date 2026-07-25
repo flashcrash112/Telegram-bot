@@ -7,6 +7,8 @@ import { config } from "./config.js";
 import { EVM_CHAINS } from "./chains.js";
 import { Sniper } from "./listener.js";
 import { parseTiers } from "./sizing.js";
+import { parseTakeProfit } from "./takeProfit.js";
+import { sellingEnabled, startMonitor } from "./monitor.js";
 
 function checkConfig(): string[] {
   const problems: string[] = [];
@@ -20,6 +22,14 @@ function checkConfig(): string[] {
     parseTiers(config.BUY_TIERS_USD);
   } catch (err) {
     problems.push((err as Error).message);
+  }
+  try {
+    parseTakeProfit(config.TAKE_PROFIT_TIERS);
+  } catch (err) {
+    problems.push((err as Error).message);
+  }
+  if (config.STOP_LOSS_PCT < 0 || config.STOP_LOSS_PCT >= 100) {
+    problems.push(`STOP_LOSS_PCT must be between 0 and 100, got ${config.STOP_LOSS_PCT}`);
   }
   if (!["native", "relay"].includes(config.BUY_ENGINE)) {
     problems.push(`BUY_ENGINE must be 'native' or 'relay', got '${config.BUY_ENGINE}'`);
@@ -56,6 +66,10 @@ async function main(): Promise<void> {
     process.exit(0);
   });
   process.on("SIGTERM", () => process.exit(0));
+
+  // The monitor runs alongside the listener: one watches chats, the
+  // other watches the positions those chats produced.
+  if (sellingEnabled()) startMonitor();
 
   await new Sniper().run();
 }

@@ -12,9 +12,10 @@ import { config, buyAmount } from "./config.js";
 import { EVM_CHAINS, SOLANA_KEY, buyEngineFor } from "./chains.js";
 import { parseTiers, tierAmountUsd } from "./sizing.js";
 import * as detector from "./detector.js";
-import * as evmBuyer from "./evmBuyer.js";
-import * as relayBuyer from "./relayBuyer.js";
-import * as solanaBuyer from "./solanaBuyer.js";
+import * as evmSwap from "./evmSwap.js";
+import * as relaySwap from "./relaySwap.js";
+import * as solanaSwap from "./solanaSwap.js";
+import { openPosition } from "./positions.js";
 import { makeLog } from "./log.js";
 
 const log = makeLog("listener");
@@ -180,25 +181,48 @@ export class Sniper {
       return;
     }
 
+    // Entry price for the take-profit ladder. Without one there is
+    // nothing to measure a multiple against, so no position is tracked.
+    const entryPriceUsd = parseFloat(det.priceUsd);
+
     if (config.DRY_RUN) {
       const origin = useRelay ? ` (paid from ${config.RELAY_ORIGIN_CHAIN} via Relay)` : "";
       log.info(
         `DRY RUN: would buy ${amount} worth of ${det.symbol} (${det.address}) ` +
           `on ${det.chain}${origin}${sizeNote}`
       );
+      if (entryPriceUsd > 0) {
+        openPosition({
+          address: det.address, chain: det.chain, symbol: det.symbol,
+          entryPriceUsd, spentNative: amount, paper: true,
+          now: new Date().toISOString(),
+        });
+      }
       return;
     }
 
     try {
       if (useRelay) {
-        const tx = await relayBuyer.buy(det.chain, det.address, amount);
+        const tx = await relaySwap.buy(det.chain, det.address, amount);
         log.info(`BOUGHT ${det.symbol} on ${det.chain} via Relay — origin tx ${tx}`);
       } else if (isSolana) {
-        const sig = await solanaBuyer.buy(det.address, amount);
+        const sig = await solanaSwap.buy(det.address, amount);
         log.info(`BOUGHT ${det.symbol} on Solana — https://solscan.io/tx/${sig}`);
       } else {
-        const tx = await evmBuyer.buy(evmChain, det.address, amount);
+        const tx = await evmSwap.buy(evmChain, det.address, amount);
         log.info(`BOUGHT ${det.symbol} on ${evmChain.name} — tx ${tx}`);
+      }
+      if (entryPriceUsd > 0) {
+        openPosition({
+          address: det.address, chain: det.chain, symbol: det.symbol,
+          entryPriceUsd, spentNative: amount, paper: false,
+          now: new Date().toISOString(),
+        });
+      } else {
+        log.warn(
+          `${det.symbol} has no usable entry price — the position is NOT tracked, ` +
+            `so take-profit will not fire for it. Sell it manually.`
+        );
       }
     } catch (err) {
       log.error(`buy failed for ${det.address} on ${det.chain}`, err);

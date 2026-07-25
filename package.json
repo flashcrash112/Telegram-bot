@@ -14,6 +14,7 @@
     "chats": "tsx src/listChats.ts",
     "verify:chain": "tsx src/verifyChain.ts",
     "discover:chain": "tsx src/discoverChain.ts",
+    "positions": "tsx src/listPositions.ts",
     "test": "vitest run"
   },
   "dependencies": {

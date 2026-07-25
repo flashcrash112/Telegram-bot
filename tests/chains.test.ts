@@ -3,7 +3,7 @@ import { describe, expect, test } from "vitest";
 
 import { config } from "../src/config.js";
 import { EVM_CHAINS, EVM_PROBE_ORDER, buyEngineFor, routerFor } from "../src/chains.js";
-import { destinationChainId } from "../src/relayBuyer.js";
+import { destinationChainId } from "../src/relaySwap.js";
 
 describe("chain registry", () => {
   test("robinhood chain is registered correctly", () => {

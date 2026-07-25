@@ -1,6 +1,7 @@
 .env
 .env.secrets
 seen_tokens.json
+positions.json
 
 # Telegram session store (GramJS StoreSession folder, named after TELEGRAM_SESSION)
 /sniper/

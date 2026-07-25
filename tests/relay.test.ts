@@ -8,7 +8,7 @@ import {
   buildQuoteBody,
   destinationChainId,
   toInt,
-} from "../src/relayBuyer.js";
+} from "../src/relaySwap.js";
 
 const USER = "0x000000000000000000000000000000000000dEaD";
 const PEPE = "0x6982508145454Ce325dDbE47a25d4ec3d2311933";

@@ -62,6 +62,15 @@ export const config = {
   // See src/sizing.ts. Empty = use the fixed per-chain amounts.
   BUY_TIERS_USD: (process.env.BUY_TIERS_USD ?? "").trim(),
 
+  // ---- selling ----
+  // Take-profit ladder, e.g. "2:50,5:30,10:20" (see src/takeProfit.ts).
+  // Empty and STOP_LOSS_PCT=0 means the position monitor never starts.
+  TAKE_PROFIT_TIERS: (process.env.TAKE_PROFIT_TIERS ?? "").trim(),
+  // Sell everything remaining once price is this many percent below entry.
+  STOP_LOSS_PCT: floatEnv("STOP_LOSS_PCT", 0),
+  POSITION_POLL_SECONDS: Math.max(5, floatEnv("POSITION_POLL_SECONDS", 30)),
+  POSITIONS_FILE: process.env.POSITIONS_FILE ?? "positions.json",
+
   // Log every message the bot receives (chat + first chars). Handy when
   // verifying the bot actually sees a chat; turn off for normal running.
   DEBUG_LOG_MESSAGES: boolEnv("DEBUG_LOG_MESSAGES", false),

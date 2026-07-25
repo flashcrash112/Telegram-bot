@@ -203,3 +203,43 @@ things you can do with a wallet**:
 - Public RPCs are slow; for real sniping use paid/private RPC endpoints.
 
 Use small amounts, a throwaway wallet, and expect to lose what you deploy.
+
+## Taking profit
+
+The bot tracks every token it buys as a position and can exit it
+automatically:
+
+```
+TAKE_PROFIT_TIERS=2:50,5:30,10:20   # at 2x sell 50% of the original
+                                    # position, at 5x another 30%,
+                                    # at 10x the last 20%
+STOP_LOSS_PCT=50                    # sell everything at -50% (0 = off)
+POSITION_POLL_SECONDS=30            # how often prices are checked
+```
+
+Percentages are always of the *original* position, so a ladder adds up
+to at most 100. A price that gaps past several rungs at once consumes
+all of them in a single sale. Leave `TAKE_PROFIT_TIERS` empty and
+`STOP_LOSS_PCT=0` to disable selling entirely — the monitor then never
+starts and the bot only buys.
+
+Exits use the same engines as entries: Jupiter on Solana, the chain's
+router on native EVM chains, and Relay for chains routed through it
+(Robinhood Chain). **A Relay sell signs transactions on the token's own
+chain, so the wallet needs a little native coin there for gas** — bridge
+some once before relying on take-profit for those chains.
+
+In `DRY_RUN` mode buys open *paper* positions and exits are logged as
+`DRY RUN: would sell ...` — a complete paper-trading record of entries,
+exits and multiples, with no funds at risk.
+
+Inspect positions any time:
+
+```bash
+npm run positions        # open positions with their current multiple
+npm run positions -- all # include closed ones
+```
+
+Tokens that repeatedly fail to sell (honeypots, or a chain with no gas)
+are retried a few times, then logged loudly and left alone for manual
+handling rather than burning gas forever.
