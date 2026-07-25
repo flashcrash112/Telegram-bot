@@ -6,6 +6,7 @@
 import { config } from "./config.js";
 import { EVM_CHAINS } from "./chains.js";
 import { Sniper } from "./listener.js";
+import { parseTiers } from "./sizing.js";
 
 function checkConfig(): string[] {
   const problems: string[] = [];
@@ -14,6 +15,11 @@ function checkConfig(): string[] {
   }
   if (!config.DRY_RUN && !config.EVM_PRIVATE_KEY && !config.SOLANA_PRIVATE_KEY) {
     problems.push("DRY_RUN=false but no EVM_PRIVATE_KEY or SOLANA_PRIVATE_KEY is set");
+  }
+  try {
+    parseTiers(config.BUY_TIERS_USD);
+  } catch (err) {
+    problems.push((err as Error).message);
   }
   if (!["native", "relay"].includes(config.BUY_ENGINE)) {
     problems.push(`BUY_ENGINE must be 'native' or 'relay', got '${config.BUY_ENGINE}'`);

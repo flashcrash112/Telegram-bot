@@ -80,6 +80,18 @@ Then edit `.env`:
    only the funds you're willing to lose — never your main wallet.**
 4. **Buy amounts**: `BUY_AMOUNT_<CHAIN>` in the chain's native coin
    (ETH, BNB, SOL, …). Set `0` to disable buying on a chain.
+5. **Market-cap-tiered sizing** (optional): `BUY_TIERS_USD` sizes buys in
+   USD by the token's market cap, overriding the fixed amounts, e.g.
+
+   ```
+   BUY_TIERS_USD=50000:50,100000:100,200000:150,500000:200,1000000:250,default:300
+   ```
+
+   means under $50k mcap buy $50, $50–100k buy $100, …, above $1m buy
+   $300. The USD size is converted to the native coin at the token's
+   current DexScreener prices. Falls back to the fixed amounts when the
+   market cap or native price is unknown, or when a Relay buy's origin
+   coin differs from the destination chain's native coin.
 
 ## Run
 

@@ -38,7 +38,9 @@ export interface Detection {
   symbol: string;
   name: string;
   liquidityUsd: number;
+  marketCap: number; // USD market cap (or FDV fallback); 0 if unknown
   priceUsd: string;
+  priceNative: string; // token price in the chain's native coin; "?" if unknown
   dex: string;
   listed: boolean; // known to DexScreener
 }
@@ -48,7 +50,9 @@ function detection(partial: Partial<Detection> & Pick<Detection, "address" | "ch
     symbol: "?",
     name: "?",
     liquidityUsd: 0,
+    marketCap: 0,
     priceUsd: "?",
+    priceNative: "?",
     dex: "?",
     listed: false,
     ...partial,
@@ -110,7 +114,9 @@ async function dexscreenerLookup(address: string): Promise<Detection | null> {
     symbol: baseToken.symbol ?? "?",
     name: baseToken.name ?? "?",
     liquidityUsd: liq(best),
+    marketCap: best?.marketCap ?? best?.fdv ?? 0,
     priceUsd: best?.priceUsd ?? "?",
+    priceNative: best?.priceNative ?? "?",
     dex: best?.dexId ?? "?",
     listed: true,
   });

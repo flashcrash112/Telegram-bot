@@ -10,6 +10,7 @@ import { NewMessage, NewMessageEvent } from "telegram/events/index.js";
 
 import { config, buyAmount } from "./config.js";
 import { EVM_CHAINS, SOLANA_KEY, buyEngineFor } from "./chains.js";
+import { parseTiers, tierAmountUsd } from "./sizing.js";
 import * as detector from "./detector.js";
 import * as evmBuyer from "./evmBuyer.js";
 import * as relayBuyer from "./relayBuyer.js";
@@ -125,7 +126,47 @@ export class Sniper {
     }
 
     const useRelay = buyEngineFor(det.chain) === "relay";
-    const amount = useRelay ? config.RELAY_BUY_AMOUNT : buyAmount(det.chain);
+    let amount = useRelay ? config.RELAY_BUY_AMOUNT : buyAmount(det.chain);
+    let sizeNote = "";
+
+    // Market-cap-tiered sizing overrides the fixed amounts when possible.
+    const tiers = parseTiers(config.BUY_TIERS_USD);
+    if (tiers.length && det.listed) {
+      const destSymbol =
+        det.chain === SOLANA_KEY ? "SOL" : EVM_CHAINS[det.chain]?.nativeSymbol ?? "?";
+      const originSymbol = useRelay
+        ? EVM_CHAINS[config.RELAY_ORIGIN_CHAIN]?.nativeSymbol ?? "?"
+        : destSymbol;
+      const usd = tierAmountUsd(tiers, det.marketCap);
+      const priceUsd = parseFloat(det.priceUsd);
+      const priceNative = parseFloat(det.priceNative);
+      // Token price in USD divided by its price in the native coin gives
+      // the native coin's USD price — no extra API call needed.
+      const nativeUsd = priceUsd > 0 && priceNative > 0 ? priceUsd / priceNative : 0;
+
+      if (usd === null) {
+        log.warn(
+          `no BUY_TIERS_USD tier covers market cap $${Math.round(det.marketCap)} — ` +
+            `using fixed amount (add a default:<usd> tier to cover everything)`
+        );
+      } else if (!(nativeUsd > 0)) {
+        log.warn(
+          `cannot derive ${destSymbol} price for tiered sizing ` +
+            `(priceUsd=${det.priceUsd}, priceNative=${det.priceNative}) — using fixed amount`
+        );
+      } else if (useRelay && originSymbol !== destSymbol) {
+        log.warn(
+          `tiered sizing needs matching native coins, but Relay origin pays ${originSymbol} ` +
+            `while ${det.chain} uses ${destSymbol} — using fixed RELAY_BUY_AMOUNT`
+        );
+      } else {
+        amount = Number((usd / nativeUsd).toFixed(9));
+        sizeNote =
+          ` [tier $${usd} at mcap $${Math.round(det.marketCap).toLocaleString("en-US")}` +
+          ` @ $${nativeUsd.toFixed(2)}/${destSymbol}]`;
+      }
+    }
+
     if (amount <= 0) {
       const varName = useRelay ? "RELAY_BUY_AMOUNT" : `BUY_AMOUNT_${det.chain.toUpperCase()}`;
       log.warn(`no buy amount configured (${varName}) for chain '${det.chain}' — skipping`);
@@ -142,7 +183,8 @@ export class Sniper {
     if (config.DRY_RUN) {
       const origin = useRelay ? ` (paid from ${config.RELAY_ORIGIN_CHAIN} via Relay)` : "";
       log.info(
-        `DRY RUN: would buy ${amount} worth of ${det.symbol} (${det.address}) on ${det.chain}${origin}`
+        `DRY RUN: would buy ${amount} worth of ${det.symbol} (${det.address}) ` +
+          `on ${det.chain}${origin}${sizeNote}`
       );
       return;
     }

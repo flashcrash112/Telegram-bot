@@ -58,6 +58,10 @@ export const config = {
 
   SEEN_TOKENS_FILE: process.env.SEEN_TOKENS_FILE ?? "seen_tokens.json",
 
+  // Market-cap-tiered USD buy sizing, e.g. "50000:50,default:300".
+  // See src/sizing.ts. Empty = use the fixed per-chain amounts.
+  BUY_TIERS_USD: (process.env.BUY_TIERS_USD ?? "").trim(),
+
   // Log every message the bot receives (chat + first chars). Handy when
   // verifying the bot actually sees a chat; turn off for normal running.
   DEBUG_LOG_MESSAGES: boolEnv("DEBUG_LOG_MESSAGES", false),
