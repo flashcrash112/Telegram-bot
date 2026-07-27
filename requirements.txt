@@ -4,3 +4,5 @@ aiohttp>=3.9
 python-dotenv>=1.0
 solders>=0.21
 base58>=2.1
+# Discord support (user + bot tokens). Only needed if ENABLE_DISCORD=true.
+discord.py-self>=2.0.0

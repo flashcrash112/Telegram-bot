@@ -46,6 +46,21 @@ SEEN_TOKENS_FILE = os.getenv("SEEN_TOKENS_FILE", "seen_tokens.json")
 # verifying the bot actually sees a chat; turn off for normal running.
 DEBUG_LOG_MESSAGES = _bool("DEBUG_LOG_MESSAGES", False)
 
+# ---------- Message sources ----------
+# Turn each source on/off. Telegram uses the TELEGRAM_* settings above.
+ENABLE_TELEGRAM = _bool("ENABLE_TELEGRAM", True)
+ENABLE_DISCORD = _bool("ENABLE_DISCORD", False)
+
+# Discord: "bot" (official, safe, invite-only) or "user" (user token, reads
+# any server you're in, but violates Discord ToS — ban risk).
+DISCORD_MODE = os.getenv("DISCORD_MODE", "user").strip().lower()
+DISCORD_BOT_TOKEN = os.getenv("DISCORD_BOT_TOKEN", "").strip()
+DISCORD_USER_TOKEN = os.getenv("DISCORD_USER_TOKEN", "").strip()
+# Numeric channel IDs to watch. Empty = every channel the account sees.
+DISCORD_CHANNELS = [
+    int(c) for c in os.getenv("DISCORD_CHANNELS", "").replace(" ", "").split(",") if c.strip().isdigit()
+]
+
 # Chains to act on, e.g. "ethereum,solana". Empty = all supported chains.
 # Detections on other chains are logged but never bought, and EVM RPC
 # probing is limited to the enabled chains.
