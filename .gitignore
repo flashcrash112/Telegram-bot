@@ -4,10 +4,14 @@ seen_tokens.json
 positions.json
 buy_history.json
 
-# Telegram session store (GramJS StoreSession folder, named after TELEGRAM_SESSION)
+# Telegram session stores: GramJS StoreSession creates a folder per name
+# in TELEGRAM_SESSIONS, and those folders contain live account
+# credentials. Add a line here for every session name you configure.
 /sniper/
+/alt/
 *.session
 *.session-journal
+*authKey*
 
 # Node
 node_modules/
